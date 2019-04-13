@@ -605,7 +605,7 @@ export class Connection {
     // use a random seed on the server.  In that case, we don't pass the
     // randomSeed to save bandwidth, and we don't even generate it to save a
     // bit of CPU and to avoid consuming entropy.
-    let randomSeed = null;
+    let randomSeed = options.randomSeed || null;
     const randomSeedGenerator = () => {
       if (randomSeed === null) {
         randomSeed = DDPCommon.makeRpcSeed(enclosing, name);
@@ -1259,7 +1259,8 @@ export class Connection {
 
         self._pushUpdate(updates, msg.collection, msg);
       } else if (isExisting) {
-        throw new Error('Server sent add for existing id: ' + msg.id);
+        self._pushUpdate(updates, msg.collection, msg);
+        // throw new Error('Server sent add for existing id: ' + msg.id);
       }
     } else {
       self._pushUpdate(updates, msg.collection, msg);
