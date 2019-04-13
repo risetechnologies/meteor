@@ -83,7 +83,7 @@ _.extend(SessionDocumentView.prototype, {
     }
     var precedenceList = self.dataByKey.get(key);
     var elt;
-    if (!isAdd) {
+    if (!isAdd || isAdd && self.dataByKey.has(key)) {
       elt = precedenceList.find(function (precedence) {
           return precedence.subscriptionHandle === subscriptionHandle;
       });
@@ -184,8 +184,11 @@ _.extend(SessionCollectionView.prototype, {
     var self = this;
     var changedResult = {};
     var docView = self.documents.get(id);
-    if (!docView)
-      throw new Error("Could not find element with id " + id + " to change");
+    if (!docView) {
+      // throw new Error("Could not find element with id " + id + " to change");
+      self.callbacks.changed(self.collectionName, id, changed);
+      return;
+    }
     _.each(changed, function (value, key) {
       if (value === undefined)
         docView.clearField(subscriptionHandle, key, changedResult);
@@ -199,8 +202,10 @@ _.extend(SessionCollectionView.prototype, {
     var self = this;
     var docView = self.documents.get(id);
     if (!docView) {
-      var err = new Error("Removed nonexistent document " + id);
-      throw err;
+      self.callbacks.removed(self.collectionName, id);
+      return;
+      // var err = new Error("Removed nonexistent document " + id);
+      // throw err;
     }
     docView.existsIn.delete(subscriptionHandle);
     if (docView.existsIn.size === 0) {
@@ -1299,7 +1304,9 @@ _.extend(Subscription.prototype, {
     id = self._idFilter.idStringify(id);
     // We don't bother to delete sets of things in a collection if the
     // collection is empty.  It could break _removeAllDocuments.
-    self._documents.get(collectionName).delete(id);
+    const doc = self._documents.get(collectionName);
+    if (doc) doc.delete(id);
+    // self._documents.get(collectionName).delete(id);
     self._session.removed(self._subscriptionHandle, collectionName, id);
   },
 
