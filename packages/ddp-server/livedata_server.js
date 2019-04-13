@@ -851,7 +851,7 @@ _.extend(Session.prototype, {
     var self = this;
 
     var sub = new Subscription(
-      self, handler, subId, params, name);
+      self, handler, subId, params, name, options);
     if (subId)
       self._namedSubs.set(subId, sub);
     else
@@ -1659,14 +1659,16 @@ _.extend(Server.prototype, {
     var connection = null;
     var currentMethodInvocation = DDP._CurrentMethodInvocation.get();
     var currentPublicationInvocation = DDP._CurrentPublicationInvocation.get();
-    var randomSeed = null;
+    var randomSeed = options.randomSeed || null;
     if (currentMethodInvocation) {
       userId = currentMethodInvocation.userId;
       setUserId = function(userId) {
         currentMethodInvocation.setUserId(userId);
       };
       connection = currentMethodInvocation.connection;
-      randomSeed = DDPCommon.makeRpcSeed(currentMethodInvocation, name);
+      if (!randomSeed) {
+        randomSeed = options.randomSeed || DDPCommon.makeRpcSeed(currentMethodInvocation, name);
+      }
     } else if (currentPublicationInvocation) {
       userId = currentPublicationInvocation.userId;
       setUserId = function(userId) {
