@@ -620,9 +620,9 @@ _.extend(Session.prototype, {
         }
       }
 
-      var handler = self.server.publish_handlers[msg.name];
+      var { handler, options } = self.server.publish_handlers[msg.name];
 
-      self._startSubscription(handler, msg.id, msg.params, msg.name);
+      self._startSubscription(handler, msg.id, msg.params, msg.name, options);
 
     },
 
@@ -847,7 +847,7 @@ _.extend(Session.prototype, {
     });
   },
 
-  _startSubscription: function (handler, subId, params, name) {
+  _startSubscription: function (handler, subId, params, name, options) {
     var self = this;
 
     var sub = new Subscription(
@@ -869,8 +869,13 @@ _.extend(Session.prototype, {
       var maybeSub = self._namedSubs.get(subId);
       if (maybeSub) {
         subName = maybeSub._name;
-        maybeSub._removeAllDocuments();
-        maybeSub._deactivate();
+        if (maybeSub._options && maybeSub._options.noRemoveOnUnsub) {
+          maybeSub._deactivate();
+          maybeSub._removeAllDocuments();
+        } else {
+          maybeSub._removeAllDocuments();
+          maybeSub._deactivate();
+        }
         self._namedSubs.delete(subId);
       }
     }
@@ -957,10 +962,10 @@ _.extend(Session.prototype, {
  * @showInstanceName true
  */
 var Subscription = function (
-    session, handler, subscriptionId, params, name) {
+    session, handler, subscriptionId, params, name, options) {
   var self = this;
   self._session = session; // type is Session
-
+  self._options = options;
   /**
    * @summary Access inside the publish function. The incoming [connection](#meteor_onconnection) for this subscription.
    * @locus Server
@@ -1180,7 +1185,7 @@ _.extend(Subscription.prototype, {
     var self = this;
     return new Subscription(
       self._session, self._handler, self._subscriptionId, self._params,
-      self._name);
+      self._name, self._options);
   },
 
   /**
@@ -1552,7 +1557,7 @@ _.extend(Server.prototype, {
       }
 
       if (name)
-        self.publish_handlers[name] = handler;
+        self.publish_handlers[name] = { handler, options };
       else {
         self.universal_publish_handlers.push(handler);
         // Spin up the new publisher on any existing session too. Run each
@@ -1561,7 +1566,7 @@ _.extend(Server.prototype, {
         self.sessions.forEach(function (session) {
           if (!session._dontStartNewUniversalSubs) {
             Fiber(function() {
-              session._startSubscription(handler);
+              session._startSubscription(handler, undefined, undefined, undefined, options);
             }).run();
           }
         });
