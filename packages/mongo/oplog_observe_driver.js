@@ -373,12 +373,9 @@ _.extend(OplogObserveDriver.prototype, {
   _removeMatching: function (id) {
     var self = this;
     Meteor._noYieldsAllowed(function () {
-      if (! self._published.has(id) && ! self._limit)
-        throw Error("tried to remove something matching but not cached " + id);
+      self._removePublished(id);
 
-      if (self._published.has(id)) {
-        self._removePublished(id);
-      } else if (self._unpublishedBuffer.has(id)) {
+      if (self._limit && self._unpublishedBuffer.has(id)) {
         self._removeBuffered(id);
       }
     });
@@ -584,8 +581,6 @@ _.extend(OplogObserveDriver.prototype, {
       }
 
       if (op.op === 'd') {
-        if (self._published.has(id) ||
-            (self._limit && self._unpublishedBuffer.has(id)))
           self._removeMatching(id);
       } else if (op.op === 'i') {
         if (self._published.has(id))
@@ -637,7 +632,9 @@ _.extend(OplogObserveDriver.prototype, {
             return;
           }
           self._handleDoc(id, self._sharedProjectionFn(newDoc));
-        } else if (!canDirectlyModifyDoc ||
+        } else if ((self._cursorDescription.options.skipInitial
+                    && !publishedBefore && !bufferedBefore) ||
+                   !canDirectlyModifyDoc ||
                    self._matcher.canBecomeTrueByModifier(op.o) ||
                    (self._sorter && self._sorter.affectedByModifier(op.o))) {
           self._needToFetch.set(id, op.ts.toString());
@@ -655,7 +652,7 @@ _.extend(OplogObserveDriver.prototype, {
     if (self._stopped)
       throw new Error("oplog stopped surprisingly early");
 
-    self._runQuery({initial: true});  // yields
+    if (!self._cursorDescription.options.skipInitial) self._runQuery({initial: true});  // yields
 
     if (self._stopped)
       return;  // can happen on queryError
@@ -696,7 +693,7 @@ _.extend(OplogObserveDriver.prototype, {
       // Defer so that we don't yield.  We don't need finishIfNeedToPollQuery
       // here because SwitchedToQuery is not thrown in QUERYING mode.
       Meteor.defer(function () {
-        self._runQuery();
+        if (!self._cursorDescription.options.skipInitial) self._runQuery();
         self._doneQuerying();
       });
     });

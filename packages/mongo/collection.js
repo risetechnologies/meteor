@@ -195,16 +195,18 @@ Object.assign(Mongo.Collection.prototype, {
           return;
         } else if (msg.msg === 'added') {
           if (doc) {
-            throw new Error("Expected not to find a document already present for an add");
+            self._collection.update(mongoId, { $set: msg.fields });
+            // throw new Error("Expected not to find a document already present for an add");
+          } else {
+            self._collection.insert({ _id: mongoId, ...msg.fields });
           }
-          self._collection.insert({ _id: mongoId, ...msg.fields });
         } else if (msg.msg === 'removed') {
-          if (!doc)
-            throw new Error("Expected to find a document already present for removed");
+          if (!doc) return;
+            //throw new Error("Expected to find a document already present for removed");
           self._collection.remove(mongoId);
         } else if (msg.msg === 'changed') {
-          if (!doc)
-            throw new Error("Expected to find a document to change");
+          if (!doc) return;
+           // throw new Error("Expected to find a document to change");
           const keys = Object.keys(msg.fields);
           if (keys.length > 0) {
             var modifier = {};
