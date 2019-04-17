@@ -684,41 +684,28 @@ export class AccountsServer extends AccountsCommon {
       return ServiceConfiguration.configurations.find({}, {fields: {secret: 0}});
     }, {is_auto: true}); // not techincally autopublish, but stops the warning.
 
-    // Publish the current user's record to the client.
-    this._server.publish(null, function () {
-      if (this.userId) {
-        return users.find({
-          _id: this.userId
-        }, {
-          fields: {
-            profile: 1,
-            username: 1,
-            emails: 1
-          }
-        });
-      } else {
-        return null;
-      }
-    }, /*suppress autopublish warning*/{is_auto: true});
+    // ['profile', 'username'] -> {profile: 1, username: 1}
+    const toFieldSelector = fields => fields.reduce((prev, field) => (
+        { ...prev, [field]: 1 }),
+      {}
+    );
 
-    // Use Meteor.startup to give other packages a chance to call
-    // addAutopublishFields.
-    Package.autopublish && Meteor.startup(() => {
-      // ['profile', 'username'] -> {profile: 1, username: 1}
-      const toFieldSelector = fields => fields.reduce((prev, field) => (
-          { ...prev, [field]: 1 }),
-        {}
-      );
+    Meteor.startup(() => {
+      // Publish the current user's record to the client.
       this._server.publish(null, function () {
         if (this.userId) {
-          return users.find({ _id: this.userId }, {
+          return users.find({_id: this.userId}, {
             fields: toFieldSelector(_autopublishFields.loggedInUser),
           })
         } else {
           return null;
         }
       }, /*suppress autopublish warning*/{is_auto: true});
+    });
 
+    // Use Meteor.startup to give other packages a chance to call
+    // addAutopublishFields.
+    Package.autopublish && Meteor.startup(() => {
       // XXX this publish is neither dedup-able nor is it optimized by our special
       // treatment of queries on a specific _id. Therefore this will have O(n^2)
       // run-time performance every time a user document is changed (eg someone
