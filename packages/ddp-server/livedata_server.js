@@ -159,7 +159,7 @@ _.extend(SessionCollectionView.prototype, {
     self.callbacks.changed(self.collectionName, id, fields);
   },
 
-  added: function (subscriptionHandle, id, fields, enforce) {
+  added: function (subscriptionHandle, id, fields) {
     var self = this;
     var docView = self.documents.get(id);
     var added = false;
@@ -174,9 +174,7 @@ _.extend(SessionCollectionView.prototype, {
       docView.changeField(
         subscriptionHandle, key, value, changeCollector, true);
     });
-    if (enforce) {
-      self.callbacks.added(self.collectionName, id, fields);
-    } else if (added)
+    if (added)
       self.callbacks.added(self.collectionName, id, changeCollector);
     else
       self.callbacks.changed(self.collectionName, id, changeCollector);
@@ -389,10 +387,10 @@ _.extend(Session.prototype, {
     return ret;
   },
 
-  added: function (subscriptionHandle, collectionName, id, fields, enforce) {
+  added: function (subscriptionHandle, collectionName, id, fields) {
     var self = this;
     var view = self.getCollectionView(collectionName);
-    view.added(subscriptionHandle, id, fields, enforce);
+    view.added(subscriptionHandle, id, fields);
   },
 
   removed: function (subscriptionHandle, collectionName, id) {
@@ -1260,7 +1258,7 @@ _.extend(Subscription.prototype, {
    * @param {String} id The new document's ID.
    * @param {Object} fields The fields in the new document.  If `_id` is present it is ignored.
    */
-  added: function (collectionName, id, fields, enforce) {
+  added: function (collectionName, id, fields) {
     var self = this;
     if (self._isDeactivated())
       return;
@@ -1271,7 +1269,7 @@ _.extend(Subscription.prototype, {
       self._documents.set(collectionName, ids);
     }
     ids.add(id);
-    self._session.added(self._subscriptionHandle, collectionName, id, fields, enforce);
+    self._session.added(self._subscriptionHandle, collectionName, id, fields);
   },
 
   /**
