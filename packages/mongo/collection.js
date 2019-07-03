@@ -20,15 +20,15 @@ Mongo = {};
  - **`'STRING'`**: random strings
  - **`'MONGO'`**:  random [`Mongo.ObjectID`](#mongo_object_id) values
 
-The default id generation technique is `'STRING'`.
+ The default id generation technique is `'STRING'`.
  * @param {Function} options.transform An optional transformation function. Documents will be passed through this function before being returned from `fetch` or `findOne`, and before being passed to callbacks of `observe`, `map`, `forEach`, `allow`, and `deny`. Transforms are *not* applied for the callbacks of `observeChanges` or to cursors returned from publish functions.
  * @param {Boolean} options.defineMutationMethods Set to `false` to skip setting up the mutation methods that enable insert/update/remove from client code. Default `true`.
  */
 Mongo.Collection = function Collection(name, options) {
   if (!name && (name !== null)) {
     Meteor._debug("Warning: creating anonymous collection. It will not be " +
-                  "saved or synchronized over the network. (Pass null for " +
-                  "the collection name to turn off this warning.)");
+      "saved or synchronized over the network. (Pass null for " +
+      "the collection name to turn off this warning.)");
     name = null;
   }
 
@@ -55,29 +55,29 @@ Mongo.Collection = function Collection(name, options) {
     transform: null,
     _driver: undefined,
     _preventAutopublish: false,
-      ...options,
+    ...options,
   };
 
   switch (options.idGeneration) {
-  case 'MONGO':
-    this._makeNewID = function () {
-      var src = name ? DDP.randomStream('/collection/' + name) : Random.insecure;
-      return new Mongo.ObjectID(src.hexString(24));
-    };
-    break;
-  case 'STRING':
-  default:
-    this._makeNewID = function () {
-      var src = name ? DDP.randomStream('/collection/' + name) : Random.insecure;
-      return src.id();
-    };
-    break;
+    case 'MONGO':
+      this._makeNewID = function () {
+        var src = name ? DDP.randomStream('/collection/' + name) : Random.insecure;
+        return new Mongo.ObjectID(src.hexString(24));
+      };
+      break;
+    case 'STRING':
+    default:
+      this._makeNewID = function () {
+        var src = name ? DDP.randomStream('/collection/' + name) : Random.insecure;
+        return src.id();
+      };
+      break;
   }
 
   this._transform = LocalCollection.wrapTransform(options.transform);
 
   if (! name || options.connection === null)
-    // note: nameless collections never have a connection
+  // note: nameless collections never have a connection
     this._connection = null;
   else if (options.connection)
     this._connection = options.connection;
@@ -92,8 +92,8 @@ Mongo.Collection = function Collection(name, options) {
     // collection from Node code without webapp", but we don't yet.
     // #MeteorServerNull
     if (name && this._connection === Meteor.server &&
-        typeof MongoInternals !== "undefined" &&
-        MongoInternals.defaultRemoteCollectionDriver) {
+      typeof MongoInternals !== "undefined" &&
+      MongoInternals.defaultRemoteCollectionDriver) {
       options._driver = MongoInternals.defaultRemoteCollectionDriver();
     } else {
       const { LocalCollectionDriver } =
@@ -126,9 +126,9 @@ Mongo.Collection = function Collection(name, options) {
 
   // autopublish
   if (Package.autopublish &&
-      ! options._preventAutopublish &&
-      this._connection &&
-      this._connection.publish) {
+    ! options._preventAutopublish &&
+    this._connection &&
+    this._connection.publish) {
     this._connection.publish(null, () => this.find(), {
       is_auto: true,
     });
@@ -141,7 +141,7 @@ Object.assign(Mongo.Collection.prototype, {
   }) {
     const self = this;
     if (! (self._connection &&
-           self._connection.registerStore)) {
+      self._connection.registerStore)) {
       return;
     }
 
@@ -202,11 +202,11 @@ Object.assign(Mongo.Collection.prototype, {
           }
         } else if (msg.msg === 'removed') {
           if (!doc) return;
-            //throw new Error("Expected to find a document already present for removed");
+          //throw new Error("Expected to find a document already present for removed");
           self._collection.remove(mongoId);
         } else if (msg.msg === 'changed') {
           if (!doc) return;
-           // throw new Error("Expected to find a document to change");
+          // throw new Error("Expected to find a document to change");
           const keys = Object.keys(msg.fields);
           if (keys.length > 0) {
             var modifier = {};
@@ -473,8 +473,8 @@ Object.assign(Mongo.Collection.prototype, {
 
     if ('_id' in doc) {
       if (! doc._id ||
-          ! (typeof doc._id === 'string' ||
-             doc._id instanceof Mongo.ObjectID)) {
+        ! (typeof doc._id === 'string' ||
+          doc._id instanceof Mongo.ObjectID)) {
         throw new Error(
           "Meteor requires document _id fields to be non-empty strings or ObjectIDs");
       }
@@ -779,8 +779,8 @@ function popCallbackFromArgs(args) {
   // Pull off any callback (or perhaps a 'callback' variable that was passed
   // in undefined, like how 'upsert' does it).
   if (args.length &&
-      (args[args.length - 1] === undefined ||
-       args[args.length - 1] instanceof Function)) {
+    (args[args.length - 1] === undefined ||
+      args[args.length - 1] instanceof Function)) {
     return args.pop();
   }
 }
