@@ -35,6 +35,8 @@ export default class LocalCollection {
     // if saving originals. See comments before saveOriginals().
     this._savedOriginals = null;
 
+    this._trackedChanges = null;
+
     // True when observers are paused and we should not send callbacks.
     this.paused = false;
   }
@@ -318,6 +320,18 @@ export default class LocalCollection {
     return originals;
   }
 
+  retrieveChanges() {
+    if (!this._trackedChanges) {
+      throw new Error('Called retrieveChanges without trackChanges');
+    }
+
+    const changes = this._trackedChanges;
+
+    this._trackedChanges = null;
+
+    return changes;
+  }
+
   // To track what documents are affected by a piece of code, call
   // saveOriginals() before it and retrieveOriginals() after it.
   // retrieveOriginals returns an object whose keys are the ids of the documents
@@ -331,6 +345,13 @@ export default class LocalCollection {
     }
 
     this._savedOriginals = new LocalCollection._IdMap;
+  }
+
+  trackChanges() {
+    if (this._trackedChanges) {
+      throw new Error('Called trackChanges twice without retrieveChanges');
+    }
+    this._trackedChanges = new Set();
   }
 
   // XXX atomicity: if multi is true, and one modification fails, do
@@ -615,6 +636,10 @@ export default class LocalCollection {
   }
 
   _saveOriginal(id, doc) {
+    if (this._trackedChanges) {
+      this._trackedChanges.add(id);
+    }
+
     // Are we even trying to save originals?
     if (!this._savedOriginals) {
       return;

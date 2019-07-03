@@ -302,7 +302,9 @@ export class Connection {
       'beginUpdate',
       'endUpdate',
       'saveOriginals',
+      'trackChanges',
       'retrieveOriginals',
+      'retrieveChanges',
       'getDoc',
       '_getCollection'
     ];
@@ -796,6 +798,12 @@ export class Connection {
     });
   }
 
+  _trackChanges() {
+    Object.values(this._stores).forEach((store) => {
+      store.trackChanges();
+    });
+  }
+
   // Retrieves the original versions of all documents modified by the stub for
   // method 'methodId' from all stores and saves them to _serverDocuments (keyed
   // by document) and _documentsWrittenByStub (keyed by method ID).
@@ -835,6 +843,24 @@ export class Connection {
     if (! isEmpty(docsWritten)) {
       self._documentsWrittenByStub[methodId] = docsWritten;
     }
+  }
+
+  // Retrieves the original versions of all documents modified by the stub for
+  // method 'methodId' from all stores and saves them to _serverDocuments (keyed
+  // by document) and _documentsWrittenByStub (keyed by method ID).
+  _retrieveChanges() {
+    const self = this;
+    const docsWritten = [];
+
+    Object.entries(self._stores).forEach(([collection, store]) => {
+      const snapshot = store.retrieveChanges();
+      // not all stores define retrieveOriginals
+      if (! snapshot) return;
+      snapshot.forEach((id) => {
+        docsWritten.push({ collection, id });
+      });
+    });
+    return docsWritten;
   }
 
   // This is very much a private function we use to make the tests

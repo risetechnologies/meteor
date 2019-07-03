@@ -246,8 +246,14 @@ Object.assign(Mongo.Collection.prototype, {
       saveOriginals() {
         self._collection.saveOriginals();
       },
+      trackChanges() {
+        self._collection.trackChanges();
+      },
       retrieveOriginals() {
         return self._collection.retrieveOriginals();
+      },
+      retrieveChanges() {
+        return self._collection.retrieveChanges();
       },
 
       // Used to preserve current versions of documents across a store reset.
