@@ -694,7 +694,7 @@ export class AccountsServer extends AccountsCommon {
       // Publish the current user's record to the client.
       this._server.publish(null, function () {
         if (this.userId) {
-          return users.find({_id: this.userId}, {
+          return users.find({ _id: this.userId }, {
             fields: toFieldSelector(_autopublishFields.loggedInUser),
           })
         } else {
