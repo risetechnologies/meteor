@@ -117,6 +117,10 @@ export class Connection {
     // of their writes to be written to the local cache). Map from method ID to
     // MethodInvoker object.
     self._methodInvokers = Object.create(null);
+    self._onMethodInvoke = new Hook({
+      bindEnvironment: false,
+      debugPrintExceptions: "onMethodInvoke callback"
+    });
 
     // Tracks methods which the user has called but whose result messages have not
     // arrived yet.
@@ -646,6 +650,30 @@ export class Connection {
 
       if (!alreadyInSimulation) self._saveOriginals();
 
+      const wrapStub = (invocation, args) => {
+        // re-clone, so that the stub can't affect our caller's values
+        const clonedArgs = EJSON.clone(args);
+
+        if (alreadyInSimulation && options.trackChanges) {
+          self._trackChanges();
+          let result;
+          let writtenDocs;
+          try {
+            result = stub.apply(invocation, clonedArgs);
+          } finally {
+            writtenDocs = self._retrieveChanges();
+          }
+
+          self._onMethodInvoke.each((cb) => {
+            cb({ type: 'extend', parentId: (self._nextMethodId - 1).toString(), name, writtenDocs, result });
+            return true;
+          });
+          return result;
+        }
+
+        return stub.apply(invocation, clonedArgs);
+      };
+
       try {
         // Note that unlike in the corresponding server code, we never audit
         // that stubs check() their arguments.
@@ -656,11 +684,10 @@ export class Connection {
               // Because saveOriginals and retrieveOriginals aren't reentrant,
               // don't allow stubs to yield.
               return Meteor._noYieldsAllowed(() => {
-                // re-clone, so that the stub can't affect our caller's values
-                return stub.apply(invocation, EJSON.clone(args));
+                return wrapStub(invocation, args);
               });
             } else {
-              return stub.apply(invocation, EJSON.clone(args));
+              return wrapStub(invocation, args);
             }
           }
         );
@@ -708,6 +735,10 @@ export class Connection {
     // go to log.
     if (exception) {
       if (options.throwStubExceptions) {
+        self._onMethodInvoke.each((cb) => {
+          cb({ type:'remove', id: methodId, error: exception, result: stubReturnValue });
+          return true;
+        });
         throw exception;
       } else if (!exception._expectedByTest) {
         Meteor._debug(
@@ -752,6 +783,16 @@ export class Connection {
       wait: !!options.wait,
       message: message,
       noRetry: !!options.noRetry
+    });
+
+    self._onMethodInvoke.each((cb) => {
+      cb({
+        type: 'add',
+        methodInvoker: methodInvoker,
+        writtenDocs: this._documentsWrittenByStub[methodId],
+        result: stubReturnValue,
+      });
+      return true;
     });
 
     if (options.wait) {
