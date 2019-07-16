@@ -598,6 +598,7 @@ export class Connection {
 
     const enclosing = DDP._CurrentMethodInvocation.get();
     const alreadyInSimulation = enclosing && enclosing.isSimulation;
+    const methodId = (alreadyInSimulation ? self._nextMethodId : self._nextMethodId++).toString();
 
     // Lazily generate a randomSeed, only if it is requested by the stub.
     // The random streams only have utility if they're used on both the client
@@ -646,7 +647,12 @@ export class Connection {
         }
       });
 
-      if (!alreadyInSimulation) self._saveOriginals();
+      if (alreadyInSimulation) {
+        invocation.id = enclosing.id;
+      } else {
+        self._saveOriginals();
+        invocation.id = methodId;
+      }
 
       const wrapStub = (invocation, args) => {
         // re-clone, so that the stub can't affect our caller's values
@@ -656,10 +662,16 @@ export class Connection {
           let result;
           try {
             result = stub.apply(invocation, clonedArgs);
-          } catch {}
+          } catch (err) {}
 
           self._onMethodInvoke.each((cb) => {
-            cb({ type: 'extend', parentId: (self._nextMethodId - 1).toString(), name, result });
+            cb({
+              type: 'extend',
+              parentId: invocation.id,
+              name,
+              params: args,
+              result,
+            });
             return true;
           });
           return result;
@@ -702,9 +714,6 @@ export class Connection {
       return stubReturnValue;
     }
 
-    // We only create the methodId here because we don't actually need one if
-    // we're already in a simulation
-    const methodId = '' + self._nextMethodId++;
     if (stub) {
       self._retrieveAndStoreOriginals(methodId);
     }
@@ -730,7 +739,7 @@ export class Connection {
     if (exception) {
       if (options.throwStubExceptions) {
         self._onMethodInvoke.each((cb) => {
-          cb({ type:'remove', id: methodId, error: exception, result: stubReturnValue });
+          cb({ type:'remove', id: methodId, name, error: exception, result: stubReturnValue });
           return true;
         });
         throw exception;
@@ -782,6 +791,7 @@ export class Connection {
     self._onMethodInvoke.each((cb) => {
       cb({
         type: 'add',
+        name,
         methodInvoker: methodInvoker,
         writtenDocs: this._documentsWrittenByStub[methodId],
         result: stubReturnValue,

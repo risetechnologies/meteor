@@ -54,7 +54,13 @@ export default class MethodInvoker {
       // Forget about this method.
       delete this._connection._methodInvokers[this.methodId];
       this._connection._onMethodInvoke.each((cb) => {
-        cb({ type:'remove', id: this.methodId, error: this._methodResult[0], result: this._methodResult[1] });
+        cb({
+          type:'remove',
+          id: this.methodId,
+          name: this._message.name,
+          error: this._methodResult[0],
+          result: this._methodResult[1],
+        });
         return true;
       });
 
