@@ -306,9 +306,7 @@ export class Connection {
       'beginUpdate',
       'endUpdate',
       'saveOriginals',
-      'trackChanges',
       'retrieveOriginals',
-      'retrieveChanges',
       'getDoc',
       '_getCollection'
     ];
@@ -654,18 +652,14 @@ export class Connection {
         // re-clone, so that the stub can't affect our caller's values
         const clonedArgs = EJSON.clone(args);
 
-        if (alreadyInSimulation && options.trackChanges) {
-          self._trackChanges();
+        if (alreadyInSimulation) {
           let result;
-          let writtenDocs;
           try {
             result = stub.apply(invocation, clonedArgs);
-          } finally {
-            writtenDocs = self._retrieveChanges();
-          }
+          } catch {}
 
           self._onMethodInvoke.each((cb) => {
-            cb({ type: 'extend', parentId: (self._nextMethodId - 1).toString(), name, writtenDocs, result });
+            cb({ type: 'extend', parentId: (self._nextMethodId - 1).toString(), name, result });
             return true;
           });
           return result;
@@ -839,12 +833,6 @@ export class Connection {
     });
   }
 
-  _trackChanges() {
-    Object.values(this._stores).forEach((store) => {
-      store.trackChanges();
-    });
-  }
-
   // Retrieves the original versions of all documents modified by the stub for
   // method 'methodId' from all stores and saves them to _serverDocuments (keyed
   // by document) and _documentsWrittenByStub (keyed by method ID).
@@ -884,24 +872,6 @@ export class Connection {
     if (! isEmpty(docsWritten)) {
       self._documentsWrittenByStub[methodId] = docsWritten;
     }
-  }
-
-  // Retrieves the original versions of all documents modified by the stub for
-  // method 'methodId' from all stores and saves them to _serverDocuments (keyed
-  // by document) and _documentsWrittenByStub (keyed by method ID).
-  _retrieveChanges() {
-    const self = this;
-    const docsWritten = [];
-
-    Object.entries(self._stores).forEach(([collection, store]) => {
-      const snapshot = store.retrieveChanges();
-      // not all stores define retrieveOriginals
-      if (! snapshot) return;
-      snapshot.forEach((id) => {
-        docsWritten.push({ collection, id });
-      });
-    });
-    return docsWritten;
   }
 
   // This is very much a private function we use to make the tests
